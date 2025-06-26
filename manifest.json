@@ -1,5 +1,5 @@
 {
-  "name": "B站运营数据增强工具",
+  "name": "社交媒体研究助手",
   "description": "目前支持b站，后续会支持多种平台如yotube、douyin、xhs、zhihu等",
   "version": "1.0.0",
   "manifest_version": 3,
