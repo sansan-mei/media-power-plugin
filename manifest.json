@@ -1,0 +1,33 @@
+{
+  "name": "B站运营数据增强工具",
+  "description": "目前支持b站，后续会支持多种平台如yotube、douyin、xhs、zhihu等",
+  "version": "1.0.0",
+  "manifest_version": 3,
+  "author": "MEI YI YI",
+  "icons": {
+    "16": "icon.png",
+    "32": "icon.png",
+    "48": "icon.png",
+    "128": "icon.png"
+  },
+  "permissions": ["contextMenus", "tabs", "notifications", "cookies"],
+  "host_permissions": [
+    "https://*.bilibili.com/*",
+    "https://bilibili.com/*",
+    "http://127.0.0.1/*"
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://*.bilibili.com/*", "https://bilibili.com/*"],
+      "js": ["index.mjs"]
+    }
+  ],
+  "background": {
+    "service_worker": "back.mjs",
+    "type": "module"
+  },
+  "homepage_url": "https://mh33.top/payList"
+}
