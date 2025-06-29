@@ -18,19 +18,23 @@ function requestHapiHandle() {
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     const url = tabs[0].url;
     console.log("当前页面URL:", url);
+    const allowedDomains = ["bilibili", "youtube"];
 
-    if (!url.includes("bilibili.com")) {
+    if (!allowedDomains.some((domain) => url.includes(domain))) {
       chrome.notifications.create({
         type: "basic",
         iconUrl: "icon.png",
         title: "错误",
-        message: "此功能仅在B站页面可用",
+        message: "此功能在当前页面不可用",
       });
       return;
     }
+    const platform = allowedDomains.find((domain) => url.includes(domain));
 
     const apiUrl = new URL(
-      `http://127.0.0.1:39002/start-crawl/${encodeURIComponent(url)}`
+      `http://127.0.0.1:39002/start-crawl/${platform}/${encodeURIComponent(
+        url
+      )}`
     );
 
     chrome.cookies.getAll({ domain: ".bilibili.com" }).then((cookies) => {
