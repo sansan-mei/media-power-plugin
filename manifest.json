@@ -13,6 +13,7 @@
   "permissions": ["contextMenus", "tabs", "notifications", "cookies"],
   "host_permissions": [
     "https://*.bilibili.com/*",
+    "https://*.youtube.com/*",
     "https://bilibili.com/*",
     "http://127.0.0.1/*"
   ],
@@ -21,7 +22,12 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://*.bilibili.com/*", "https://bilibili.com/*"],
+      "matches": [
+        "https://*.bilibili.com/*",
+        "https://bilibili.com/*",
+        "https://*.youtube.com/*",
+        "https://youtube.com/*"
+      ],
       "js": ["index.mjs"]
     }
   ],
