@@ -37,7 +37,7 @@ function requestHapiHandle() {
       )}`
     );
 
-    chrome.cookies.getAll({ domain: ".bilibili.com" }).then((cookies) => {
+    chrome.cookies.getAll({ url }).then((cookies) => {
       // 将 cookie 转换为键值对格式
       const cookiePairs = cookies.map((cookie) => {
         return {
