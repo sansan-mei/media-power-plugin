@@ -1,10 +1,16 @@
 const requestHapi = "request-hapi";
+const requestHapiElement = "request-hapi-element";
+
 chrome.runtime.onInstalled.addListener(() => {
-  // 请求Hapi服务,仅在bilibili.com下有效
   chrome.contextMenus.create({
     id: requestHapi,
     title: "请求Hapi服务",
     contexts: ["page"],
+  });
+  chrome.contextMenus.create({
+    id: requestHapiElement,
+    title: "搜集该视频",
+    contexts: ["link"],
   });
 });
 
@@ -12,12 +18,20 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === requestHapi) {
     requestHapiHandle();
   }
+  if (info.menuItemId === requestHapiElement) {
+    requestHapiHandle(info);
+  }
 });
 
-function requestHapiHandle() {
+/**
+ * 请求Hapi服务
+ * @param {chrome.contextMenus.OnClickData} [info]
+ */
+function requestHapiHandle(info) {
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    const url = tabs[0].url;
-    console.log("当前页面URL:", url);
+    // 优先使用右键点击的链接URL，否则使用当前页面URL
+    const url = info?.linkUrl || tabs[0].url;
+    console.log("目标URL:", url);
     const allowedDomains = ["bilibili", "youtube"];
 
     if (!allowedDomains.some((domain) => url.includes(domain))) {
@@ -37,7 +51,8 @@ function requestHapiHandle() {
       )}`
     );
 
-    chrome.cookies.getAll({ url }).then((cookies) => {
+    // 使用页面URL获取cookies
+    chrome.cookies.getAll({ url: tabs[0].url }).then((cookies) => {
       // 将 cookie 转换为键值对格式
       const cookiePairs = cookies.map((cookie) => {
         return {
