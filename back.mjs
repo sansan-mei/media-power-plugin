@@ -4,7 +4,7 @@ const requestHapiElement = "request-hapi-element";
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
     id: requestHapi,
-    title: "请求Hapi服务",
+    title: "搜集视频",
     contexts: ["page"],
   });
   chrome.contextMenus.create({
