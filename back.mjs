@@ -86,16 +86,19 @@ function requestHapiHandle(info) {
       })
         .then(async (response) => {
           if (!response.ok) {
-            throw new Error("Network response was not ok");
+            const error = await response.json();
+            throw new Error(error.message);
           }
         })
         .catch((error) => {
           console.error("Error:", error);
+          const errorMessage =
+            error.message || "无法连接到本地服务器，请确保服务器已启动";
           chrome.notifications.create({
             type: "basic",
             iconUrl: "icon.png",
             title: "请求失败",
-            message: "无法连接到本地服务器，请确保服务器已启动",
+            message: errorMessage,
           });
         });
     });
