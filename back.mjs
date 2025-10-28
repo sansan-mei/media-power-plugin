@@ -32,7 +32,7 @@ function requestHapiHandle(info) {
     // 优先使用右键点击的链接URL，否则使用当前页面URL
     const url = info?.linkUrl || tabs[0].url;
     console.log("目标URL:", url);
-    const allowedDomains = ["bilibili", "youtube"];
+    const allowedDomains = ["bilibili", "youtube", "douyin"];
 
     if (!allowedDomains.some((domain) => url.includes(domain))) {
       chrome.notifications.create({
@@ -51,56 +51,108 @@ function requestHapiHandle(info) {
       )}`
     );
 
-    // 使用页面URL获取cookies
-    chrome.cookies.getAll({ url: tabs[0].url }).then((cookies) => {
-      // 将 cookie 转换为键值对格式
-      const cookiePairs = cookies.map((cookie) => {
-        return {
-          name: cookie.name,
-          value: decodeURIComponent(cookie.value),
-        };
-      });
+    const tabId = tabs[0].id;
 
-      console.log("转换后的cookies:", cookiePairs);
+    // 如果是抖音，尝试从内容脚本获取本地存储中的 token
+    const tokenPromise = getDouyinTokens(tabId, platform);
 
-      if (!cookiePairs || cookiePairs.length === 0) {
-        chrome.notifications.create({
-          type: "basic",
-          iconUrl: "icon.png",
-          title: "错误",
-          message: "未能获取到任何cookie",
-        });
-        return;
-      }
+    // 收集多域 cookies：优先当前页，其次平台常用域
+    const urlsToCollect = [tabs[0].url];
+    if (platform === "douyin") {
+      urlsToCollect.push("https://www.douyin.com", "https://live.douyin.com");
+    }
 
-      fetch(apiUrl, {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          cookies: cookiePairs,
-        }),
-        mode: "cors",
-      })
-        .then(async (response) => {
-          if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.message);
+    const cookiesPromise = Promise.all(
+      urlsToCollect.map((u) => chrome.cookies.getAll({ url: u }))
+    ).then((results) => {
+      // 去重：按顺序优先保留前面来源（当前页优先）
+      const nameToValue = new Map();
+      results.forEach((list) => {
+        list.forEach((c) => {
+          if (!nameToValue.has(c.name)) {
+            nameToValue.set(c.name, decodeURIComponent(c.value));
           }
-        })
-        .catch((error) => {
-          console.error("Error:", error);
-          const errorMessage =
-            error.message || "无法连接到本地服务器，请确保服务器已启动";
+        });
+      });
+      return Array.from(nameToValue, ([name, value]) => ({ name, value }));
+    });
+
+    cookiesPromise.then((baseCookiePairs) => {
+      return tokenPromise.then((tokens) => {
+        const cookiePairs = [...baseCookiePairs];
+
+        console.log("转换后的cookies:", cookiePairs);
+
+        if (!cookiePairs || cookiePairs.length === 0) {
           chrome.notifications.create({
             type: "basic",
             iconUrl: "icon.png",
-            title: "请求失败",
-            message: errorMessage,
+            title: "错误",
+            message: "未能获取到任何cookie",
           });
-        });
+          return;
+        }
+
+        const postData = {
+          cookies: cookiePairs,
+          userAgent: navigator.userAgent,
+          xmst: platform === "douyin" ? tokens?.xmst || null : null,
+        };
+
+        postRequest(apiUrl, postData);
+      });
     });
   });
+}
+/**
+ *
+ * @param {number} tabId
+ * @param {string} platform
+ * @returns
+ */
+function getDouyinTokens(tabId, platform) {
+  return new Promise((resolve) => {
+    if (platform !== "douyin") {
+      resolve({});
+      return;
+    }
+    chrome.tabs.sendMessage(tabId, { type: "DY_GET_TOKENS" }, (resp) =>
+      resolve(resp || {})
+    );
+  });
+}
+
+/**
+ *
+ * @param {URL} url
+ * @param {Object} data
+ * @returns
+ */
+function postRequest(url, data) {
+  fetch(url, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+    mode: "cors",
+  })
+    .then(async (response) => {
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message);
+      }
+    })
+    .catch((error) => {
+      console.error("Error:", error);
+      const errorMessage =
+        error.message || "无法连接到本地服务器，请确保服务器已启动";
+      chrome.notifications.create({
+        type: "basic",
+        iconUrl: "icon.png",
+        title: "请求失败",
+        message: errorMessage,
+      });
+    });
 }
