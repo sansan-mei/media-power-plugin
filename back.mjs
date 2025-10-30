@@ -23,6 +23,15 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
   }
 });
 
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.type === "DY_TRIGGER_REQUEST") {
+    requestHapiHandle();
+    if (typeof sendResponse === "function") {
+      sendResponse({ success: true });
+    }
+  }
+});
+
 /**
  * 请求Hapi服务
  * @param {chrome.contextMenus.OnClickData} [info]

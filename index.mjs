@@ -66,3 +66,16 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true; // keep message channel open for async
   }
 });
+
+// 注册全局快捷键：Mac 使用 Option+A，Windows 使用 Alt+A
+window.addEventListener("keydown", (event) => {
+  const isTriggerKey = event.code === "KeyA";
+  if (!isTriggerKey || !event.altKey || event.ctrlKey || event.metaKey) {
+    return;
+  }
+  if (event.repeat) {
+    return;
+  }
+  event.preventDefault();
+  chrome.runtime.sendMessage({ type: "DY_TRIGGER_REQUEST" });
+});
