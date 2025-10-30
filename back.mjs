@@ -97,6 +97,7 @@ function requestHapiHandle(info) {
           cookies: cookiePairs,
           userAgent: navigator.userAgent,
           xmst: platform === "douyin" ? tokens?.xmst || null : null,
+          aweme_id: platform === "douyin" ? tokens?.aweme_id || null : null,
         };
 
         postRequest(apiUrl, postData);
