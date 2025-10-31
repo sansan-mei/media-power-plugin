@@ -14,28 +14,82 @@ function safeReadStorage(storage, key) {
 }
 
 /**
- * Extract aweme_id from HTML class names
- * Looks for class names like "xgplayer-playclarity-setting-unique-{aweme_id}-{timestamp}"
+ * Extract aweme_id from active video element
+ * 优先使用 data-e2e="feed-active-video" 选择器，直接获取当前播放的视频ID
  */
 function extractAwemeId() {
   try {
-    // 查找包含特定类名模式的元素
+    // 1. 查找当前在滑块列表中被标记为"活动视频"的元素
+    const activeVideoElement = document.querySelector(
+      '[data-e2e="feed-active-video"]'
+    );
+
+    if (activeVideoElement) {
+      // 直接从 data-e2e-vid 属性获取 aweme_id
+      const awemeId = activeVideoElement.getAttribute("data-e2e-vid");
+      console.log("研究小助手，已获取到抖音视频ID:", awemeId);
+      if (awemeId) {
+        return awemeId;
+      }
+    }
+
+    // 2. 备用方案：从类名中提取（兼容旧版本）
     const elements = document.querySelectorAll(
       '[class*="xgplayer-playclarity-setting-unique-"]'
     );
 
+    if (elements.length === 0) {
+      return null;
+    }
+
+    // 收集所有匹配的 aweme_id
+    const candidates = [];
     for (const element of elements) {
       const className = element.className;
-      // 匹配模式：xgplayer-playclarity-setting-unique-{数字ID}-{时间戳}
       const match = className.match(
         /xgplayer-playclarity-setting-unique-(\d+)-\d+/
       );
       if (match && match[1]) {
-        return match[1]; // 返回提取的数字ID
+        const rect = element.getBoundingClientRect();
+        const isVisible =
+          rect.top >= 0 &&
+          rect.left >= 0 &&
+          rect.bottom <= window.innerHeight &&
+          rect.right <= window.innerWidth;
+
+        candidates.push({
+          awemeId: match[1],
+          element,
+          isVisible,
+          centerY: rect.top + rect.height / 2,
+        });
       }
     }
 
-    return null;
+    if (candidates.length === 0) {
+      return null;
+    }
+
+    // 优先选择在视口中可见的元素
+    const visibleCandidates = candidates.filter((c) => c.isVisible);
+    if (visibleCandidates.length > 0) {
+      const viewportCenter = window.innerHeight / 2;
+      visibleCandidates.sort(
+        (a, b) =>
+          Math.abs(a.centerY - viewportCenter) -
+          Math.abs(b.centerY - viewportCenter)
+      );
+      return visibleCandidates[0].awemeId;
+    }
+
+    // 如果没有完全可见的元素，选择中间位置的元素
+    if (candidates.length >= 2) {
+      candidates.sort((a, b) => a.centerY - b.centerY);
+      const middleIndex = Math.floor(candidates.length / 2);
+      return candidates[middleIndex].awemeId;
+    }
+
+    return candidates[0].awemeId;
   } catch (e) {
     console.error("Error extracting aweme_id:", e);
     return null;
