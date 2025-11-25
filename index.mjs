@@ -109,6 +109,19 @@ function getDouyinTokens() {
   };
 }
 
+/**
+ * Try to read XHS tokens from page context storages
+ * 小红书目前主要从URL中获取参数，但可以提取localStorage中的b1值（用于签名）
+ * Returns possibly undefined values; background will handle fallbacks
+ */
+function getXhsTokens() {
+  // 提取localStorage中的b1值（用于API签名）
+  const b1 = safeReadStorage(window.localStorage, "b1");
+  return {
+    b1: b1 || null,
+  };
+}
+
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message && message.type === "DY_GET_TOKENS") {
     try {
@@ -119,9 +132,20 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     }
     return true; // keep message channel open for async
   }
+  
+  if (message && message.type === "XHS_GET_TOKENS") {
+    try {
+      const data = getXhsTokens();
+      sendResponse({ success: true, ...data });
+    } catch (e) {
+      sendResponse({ success: false, error: String(e) });
+    }
+    return true; // keep message channel open for async
+  }
 });
 
 // 注册全局快捷键：Mac 使用 Option+A，Windows 使用 Alt+A
+// 支持所有平台（bilibili、douyin、youtube、xhs）
 window.addEventListener("keydown", (event) => {
   const isTriggerKey = event.code === "KeyA";
   if (!isTriggerKey || !event.altKey || event.ctrlKey || event.metaKey) {

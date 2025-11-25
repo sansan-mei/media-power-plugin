@@ -1,7 +1,7 @@
 {
   "name": "社交媒体研究助手",
-  "description": "目前支持b站，抖音，YouTube后续会支持更多平台xhs、zhihu等",
-  "version": "1.2.1",
+  "description": "目前支持b站，抖音，YouTube，小红书，后续会支持更多平台zhihu等",
+  "version": "1.2.2",
   "manifest_version": 3,
   "author": "MEI YI YI",
   "icons": {
@@ -18,6 +18,9 @@
     "https://youtube.com/*",
     "https://*.douyin.com/*",
     "https://douyin.com/*",
+    "https://*.xiaohongshu.com/*",
+    "https://xiaohongshu.com/*",
+    "https://*.xhslink.com/*",
     "http://127.0.0.1/*"
   ],
   "content_security_policy": {
@@ -31,7 +34,10 @@
         "https://*.youtube.com/*",
         "https://youtube.com/*",
         "https://*.douyin.com/*",
-        "https://douyin.com/*"
+        "https://douyin.com/*",
+        "https://*.xiaohongshu.com/*",
+        "https://xiaohongshu.com/*",
+        "https://*.xhslink.com/*"
       ],
       "js": ["index.mjs"]
     }
