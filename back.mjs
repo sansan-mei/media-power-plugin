@@ -41,7 +41,13 @@ function requestHapiHandle(info) {
     // 优先使用右键点击的链接URL，否则使用当前页面URL
     const url = info?.linkUrl || tabs[0].url;
     console.log("目标URL:", url);
-    const allowedDomains = ["bilibili", "youtube", "douyin", "xiaohongshu", "xhslink"];
+    const allowedDomains = [
+      "bilibili",
+      "youtube",
+      "douyin",
+      "xiaohongshu",
+      "xhslink",
+    ];
 
     if (!allowedDomains.some((domain) => url.includes(domain))) {
       chrome.notifications.create({
@@ -52,7 +58,7 @@ function requestHapiHandle(info) {
       });
       return;
     }
-    
+
     // 确定平台：优先匹配更具体的域名
     let platform = null;
     if (url.includes("xiaohongshu") || url.includes("xhslink")) {
@@ -70,23 +76,41 @@ function requestHapiHandle(info) {
     const tabId = tabs[0].id;
 
     // 根据平台获取token：抖音需要从localStorage获取，小红书暂时不需要
-    const tokenPromise = platform === "douyin" 
-      ? getDouyinTokens(tabId, platform)
-      : platform === "xhs"
-      ? getXhsTokens(tabId, platform)
-      : Promise.resolve({});
+    const tokenPromise =
+      platform === "douyin"
+        ? getDouyinTokens(tabId, platform)
+        : platform === "xhs"
+        ? getXhsTokens(tabId, platform)
+        : Promise.resolve({});
 
-    // 收集多域 cookies：优先当前页，其次平台常用域
-    const urlsToCollect = [tabs[0].url];
+    // 收集 cookies: 统一改为使用 domain 属性，更全面
+    const domainToCollect = [];
     if (platform === "douyin") {
-      urlsToCollect.push("https://www.douyin.com", "https://live.douyin.com");
+      domainToCollect.push(".douyin.com"); // 顶级域名，捕获所有子域
     } else if (platform === "xhs") {
-      urlsToCollect.push("https://www.xiaohongshu.com", "https://edith.xiaohongshu.com");
+      // 使用 .xiaohongshu.com 捕获所有子域名 cookies
+      domainToCollect.push(".xiaohongshu.com");
+    } else if (platform === "youtube") {
+      domainToCollect.push(".youtube.com");
+    } else if (platform === "bilibili") {
+      domainToCollect.push(".bilibili.com");
     }
 
-    const cookiesPromise = Promise.all(
-      urlsToCollect.map((u) => chrome.cookies.getAll({ url: u }))
-    ).then((results) => {
+    // 始终包含当前页面 URL 的 cookies，以防有特定 path 或 host 的 cookie
+    const currentUrlCookiePromise = chrome.cookies.getAll({ url: tabs[0].url });
+
+    // 收集所有指定域名的 cookies
+    const domainCookiesPromises = domainToCollect.map((d) =>
+      chrome.cookies.getAll({ domain: d })
+    );
+
+    const contentCookiesPromise = getCookiesFromContentScript(tabId);
+
+    const cookiesPromise = Promise.all([
+      contentCookiesPromise,
+      currentUrlCookiePromise,
+      ...domainCookiesPromises,
+    ]).then((results) => {
       // 去重：按顺序优先保留前面来源（当前页优先）
       const nameToValue = new Map();
       results.forEach((list) => {
@@ -152,7 +176,7 @@ function getDouyinTokens(tabId, platform) {
  * 获取小红书相关token（如果需要的话）
  * @param {number} tabId
  * @param {string} platform
- * @returns {Promise<AnyObject>}
+ * @returns {Promise<any>}
  */
 function getXhsTokens(tabId, platform) {
   return new Promise((resolve) => {
@@ -201,4 +225,29 @@ function postRequest(url, data) {
         message: errorMessage,
       });
     });
+}
+
+/**
+ * 新增：从 Content Script 获取 document.cookie
+ * @param {number} tabId
+ */
+function getCookiesFromContentScript(tabId) {
+  return new Promise((resolve) => {
+    chrome.tabs.sendMessage(tabId, { type: "GET_COOKIES" }, (response) => {
+      // 如果连接失败（比如页面没加载完）或者返回错误，返回空数组，不要卡死流程
+      if (chrome.runtime.lastError) {
+        console.log(
+          "Content Script cookie fetch ignored:",
+          chrome.runtime.lastError.message
+        );
+        resolve([]);
+        return;
+      }
+      if (response && response.success && Array.isArray(response.cookies)) {
+        resolve(response.cookies);
+      } else {
+        resolve([]);
+      }
+    });
+  });
 }

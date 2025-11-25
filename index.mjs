@@ -122,6 +122,33 @@ function getXhsTokens() {
   };
 }
 
+/**
+ * Get all cookies from document.cookie
+ * 使用 document.cookie 可以获取到所有 cookies（包括某些扩展 API 无法访问的）
+ */
+function getAllCookies() {
+  try {
+    const cookies = document.cookie
+      .split(";")
+      .map((cookie) => {
+        const [name, ...valueParts] = cookie.trim().split("=");
+        const value = valueParts.join("="); // 处理值中包含 = 的情况
+        return { name: name.trim(), value: value.trim() };
+      })
+      .filter((c) => c.name); // 过滤掉空值
+
+    console.log("通过 document.cookie 获取到的 cookies 数量:", cookies.length);
+    console.log(
+      "Cookies 名称列表:",
+      cookies.map((c) => c.name)
+    );
+    return cookies;
+  } catch (e) {
+    console.error("Error getting cookies from document.cookie:", e);
+    return [];
+  }
+}
+
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message && message.type === "DY_GET_TOKENS") {
     try {
@@ -132,11 +159,21 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     }
     return true; // keep message channel open for async
   }
-  
+
   if (message && message.type === "XHS_GET_TOKENS") {
     try {
       const data = getXhsTokens();
       sendResponse({ success: true, ...data });
+    } catch (e) {
+      sendResponse({ success: false, error: String(e) });
+    }
+    return true; // keep message channel open for async
+  }
+
+  if (message && message.type === "GET_COOKIES") {
+    try {
+      const cookies = getAllCookies();
+      sendResponse({ success: true, cookies });
     } catch (e) {
       sendResponse({ success: false, error: String(e) });
     }
