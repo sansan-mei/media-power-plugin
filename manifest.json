@@ -1,5 +1,5 @@
 {
-  "name": "社交媒体研究助手",
+  "name": "自媒体研究助手（原社交媒体研究助手）",
   "description": "目前支持b站，抖音，YouTube，小红书，知乎等平台",
   "version": "1.3.1",
   "manifest_version": 3,
