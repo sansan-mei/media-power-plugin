@@ -47,6 +47,7 @@ function requestHapiHandle(info) {
       "douyin",
       "xiaohongshu",
       "xhslink",
+      "zhihu",
     ];
 
     if (!allowedDomains.some((domain) => url.includes(domain))) {
@@ -63,6 +64,8 @@ function requestHapiHandle(info) {
     let platform = null;
     if (url.includes("xiaohongshu") || url.includes("xhslink")) {
       platform = "xhs";
+    } else if (url.includes("zhihu")) {
+      platform = "zhihu";
     } else {
       platform = allowedDomains.find((domain) => url.includes(domain));
     }
@@ -75,12 +78,14 @@ function requestHapiHandle(info) {
 
     const tabId = tabs[0].id;
 
-    // 根据平台获取token：抖音需要从localStorage获取，小红书暂时不需要
+    // 根据平台获取token：抖音需要从localStorage获取，小红书暂时不需要，B站需要WBI密钥
     const tokenPromise =
       platform === "douyin"
         ? getDouyinTokens(tabId, platform)
         : platform === "xhs"
         ? getXhsTokens(tabId, platform)
+        : platform === "bilibili"
+        ? getBilibiliWbiKeys(tabId, platform)
         : Promise.resolve({});
 
     // 收集 cookies: 统一改为使用 domain 属性，更全面
@@ -94,6 +99,8 @@ function requestHapiHandle(info) {
       domainToCollect.push(".youtube.com");
     } else if (platform === "bilibili") {
       domainToCollect.push(".bilibili.com");
+    } else if (platform === "zhihu") {
+      domainToCollect.push(".zhihu.com");
     }
 
     // 始终包含当前页面 URL 的 cookies，以防有特定 path 或 host 的 cookie
@@ -116,7 +123,9 @@ function requestHapiHandle(info) {
       results.forEach((list) => {
         list.forEach((c) => {
           if (!nameToValue.has(c.name)) {
-            nameToValue.set(c.name, decodeURIComponent(c.value));
+            // ⚠️ 不要对 cookie value 做 decodeURIComponent
+            // 像 SESSDATA / bili_jct 等值包含 %2C 等转义，解码后会导致服务端识别异常，从而触发风控（-412）
+            nameToValue.set(c.name, c.value);
           }
         });
       });
@@ -147,6 +156,9 @@ function requestHapiHandle(info) {
           // 小红书相关参数
           url: platform === "xhs" ? url : null,
           b1: platform === "xhs" ? tokens?.b1 || null : null,
+          // B站WBI密钥
+          wbi_img_urls:
+            platform === "bilibili" ? tokens?.wbi_img_urls || null : null,
         };
 
         postRequest(apiUrl, postData);
@@ -187,6 +199,24 @@ function getXhsTokens(tabId, platform) {
     // 小红书目前不需要从页面提取特殊token，URL中已包含所需参数
     // 如果需要从localStorage提取b1等值，可以在这里添加
     chrome.tabs.sendMessage(tabId, { type: "XHS_GET_TOKENS" }, (resp) =>
+      resolve(resp || {})
+    );
+  });
+}
+
+/**
+ * 获取B站WBI密钥（从localStorage）
+ * @param {number} tabId
+ * @param {string} platform
+ * @returns {Promise<any>}
+ */
+function getBilibiliWbiKeys(tabId, platform) {
+  return new Promise((resolve) => {
+    if (platform !== "bilibili") {
+      resolve({});
+      return;
+    }
+    chrome.tabs.sendMessage(tabId, { type: "BILI_GET_WBI_KEYS" }, (resp) =>
       resolve(resp || {})
     );
   });

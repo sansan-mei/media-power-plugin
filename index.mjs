@@ -123,6 +123,33 @@ function getXhsTokens() {
 }
 
 /**
+ * Try to read Bilibili WBI keys from localStorage
+ * B站的WBI签名需要从localStorage中获取密钥
+ */
+function getBilibiliWbiKeys() {
+  const wbi_img_urls = safeReadStorage(window.localStorage, "wbi_img_urls");
+  
+  // 如果没有 wbi_img_urls，尝试分别获取
+  if (!wbi_img_urls) {
+    const wbi_img_url = safeReadStorage(window.localStorage, "wbi_img_url");
+    const wbi_sub_url = safeReadStorage(window.localStorage, "wbi_sub_url");
+    
+    if (wbi_img_url && wbi_sub_url) {
+      return {
+        wbi_img_urls: `${wbi_img_url}-${wbi_sub_url}`,
+      };
+    }
+    return {
+      wbi_img_urls: null,
+    };
+  }
+  
+  return {
+    wbi_img_urls,
+  };
+}
+
+/**
  * Get all cookies from document.cookie
  * 使用 document.cookie 可以获取到所有 cookies（包括某些扩展 API 无法访问的）
  */
@@ -170,6 +197,17 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true; // keep message channel open for async
   }
 
+  if (message && message.type === "BILI_GET_WBI_KEYS") {
+    try {
+      const data = getBilibiliWbiKeys();
+      console.log("研究小助手，已获取到B站WBI密钥:", data);
+      sendResponse({ success: true, ...data });
+    } catch (e) {
+      sendResponse({ success: false, error: String(e) });
+    }
+    return true; // keep message channel open for async
+  }
+
   if (message && message.type === "GET_COOKIES") {
     try {
       const cookies = getAllCookies();
@@ -182,7 +220,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 });
 
 // 注册全局快捷键：Mac 使用 Option+A，Windows 使用 Alt+A
-// 支持所有平台（bilibili、douyin、youtube、xhs）
+// 支持所有平台（bilibili、douyin、youtube、xhs、zhihu）
 window.addEventListener("keydown", (event) => {
   const isTriggerKey = event.code === "KeyA";
   if (!isTriggerKey || !event.altKey || event.ctrlKey || event.metaKey) {
